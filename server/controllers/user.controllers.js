@@ -31,12 +31,9 @@ const register = async (req, res, next) => {
     password,
     avatar: {
       public_id: email,
-      secure_url:
-        "https://res.cloudinary.com/dxwqpwwrh/image/upload/v1698595107/lms/qhr5tgqhxsm8s2ixch4a.jpg",
+      secure_url: email,
     },
   });
-  console.log(JSON.stringify(user));
-  console.log("req after: ", JSON.stringify(req.file));
 
   if (!user) {
     return next(
@@ -46,7 +43,7 @@ const register = async (req, res, next) => {
 
   //TODO file upload
   if (req.file) {
-    console.log("File of img req: ", req.file);
+    console.log(req.file);
     try {
       const result = await cloudinary.v2.uploader.upload(req.file.path, {
         folder: "lms", // file will be saved in lms folder

@@ -1,6 +1,8 @@
-import mongoose, { Schema } from "mongoose";
+import { Schema, model } from "mongoose";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import dotenv from "dotenv";
+dotenv.config();
 
 const userSchema = new Schema(
   {
@@ -50,11 +52,11 @@ const userSchema = new Schema(
   }
 );
 
-userSchema.pre("save", function (next) {
+userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) {
     return next();
   }
-  this.password = bcrypt.hash(this.password, 10);
+  this.password = await bcrypt.hash(this.password, 10);
 });
 
 userSchema.methods = {
@@ -77,6 +79,6 @@ userSchema.methods = {
   },
 };
 
-const User = mongoose.model("User", userSchema);
+const User = model("User", userSchema);
 
 export default User;
