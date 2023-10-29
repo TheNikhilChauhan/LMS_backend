@@ -6,10 +6,11 @@ import {
   getProfile,
 } from "../controllers/user.controllers.js";
 import { isLoggedIn } from "../middlewares/auth.middleware.js";
+import uploadImg from "../middlewares/multer.middleware.js";
 
 const router = Router();
 
-router.post("/register", register);
+router.post("/register", uploadImg.single("avatar"), register);
 router.post("/login", login);
 router.get("/logout", logout);
 router.get("/getProfile", isLoggedIn, getProfile);

@@ -1,5 +1,7 @@
 import AppError from "../utils/error.utils.js";
 import User from "../models/user.models.js";
+import cloudinary from "cloudinary";
+import fs from "fs/promises";
 
 //cookie options
 const cookieOptions = {
@@ -30,9 +32,11 @@ const register = async (req, res, next) => {
     avatar: {
       public_id: email,
       secure_url:
-        "https://res.cloudinary.com/du9jzqlpt/image/upload/v1674647316/avatar_drzgxv.jpg",
+        "https://res.cloudinary.com/dxwqpwwrh/image/upload/v1698595107/lms/qhr5tgqhxsm8s2ixch4a.jpg",
     },
   });
+  console.log(JSON.stringify(user));
+  console.log("req after: ", JSON.stringify(req.file));
 
   if (!user) {
     return next(
@@ -41,14 +45,39 @@ const register = async (req, res, next) => {
   }
 
   //TODO file upload
+  if (req.file) {
+    console.log("File of img req: ", req.file);
+    try {
+      const result = await cloudinary.v2.uploader.upload(req.file.path, {
+        folder: "lms", // file will be saved in lms folder
+        width: 250,
+        height: 250,
+        gravity: "faces",
+        crop: "fill",
+      });
+      console.log(result);
+      if (result) {
+        // Set the public_id and secure_url in DB
+        user.avatar.public_id = result.public_id;
+        user.avatar.secure_url = result.secure_url;
+
+        //Remove file from local system or server: saving on cloudinary
+        fs.rm(`uploads/${req.file.filename}`);
+      }
+    } catch (error) {
+      return next(
+        new AppError(error || "File not uploaded, please try again", 400)
+      );
+    }
+  }
 
   await user.save();
-  user.password = undefined;
 
   const token = await user.generateJWTToken();
+  user.password = undefined;
   res.cookie("token", token, cookieOptions);
 
-  res.status(201).send({
+  res.status(201).json({
     success: true,
     message: "User registered successfully",
     user,
