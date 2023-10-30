@@ -1,6 +1,7 @@
 import { Schema, model } from "mongoose";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -60,11 +61,13 @@ userSchema.pre("save", async function (next) {
 });
 
 userSchema.methods = {
+  comparePassword: async function (plainTextPassword) {
+    return await bcrypt.compare(plainTextPassword, this.password);
+  },
   generateJWTToken: async function () {
     return await jwt.sign(
       {
         id: this._id,
-        email: this.email,
         subscription: this.subscription,
         role: this.role,
       },
@@ -74,11 +77,36 @@ userSchema.methods = {
       }
     );
   },
-  comparePassword: async function (plainTextPassword) {
-    return await bcrypt.compare(plainTextPassword, this.password);
+
+  generatePasswordResetToken: async function () {
+    const resetToken = crypto.randomBytes(32).toString("hex");
+
+    this.forgotPasswordToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
+    this.forgotPasswordExpiry = Date.now() + 15 * 60 * 1000; // 15 min from now
+
+    return resetToken;
   },
 };
 
 const User = model("User", userSchema);
 
 export default User;
+
+// NOTE:-
+
+//Schema.pre:  is used to define middleware functions that
+// are executed before specific operations on a document,
+// such as save, validate, or remove.
+// Middleware functions defined with schema.pre are
+// executed at various points in the lifecycle of a
+// document, such as before it is saved to the database or validated.
+
+//Schema.methods: is used to define instance methods
+//that can be called on individual documents created from
+// a schema.
+// These methods are available on individual document
+// instances and allow you to define custom behavior that
+// can be performed on specific documents.

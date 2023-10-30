@@ -2,6 +2,8 @@ import AppError from "../utils/error.utils.js";
 import User from "../models/user.models.js";
 import cloudinary from "cloudinary";
 import fs from "fs/promises";
+import sendEmail from "../utils/sendEmail.js";
+import crypto from "crypto";
 
 //cookie options
 const cookieOptions = {
@@ -43,7 +45,6 @@ const register = async (req, res, next) => {
 
   //TODO file upload
   if (req.file) {
-    console.log(req.file);
     try {
       const result = await cloudinary.v2.uploader.upload(req.file.path, {
         folder: "lms", // file will be saved in lms folder
@@ -82,7 +83,7 @@ const register = async (req, res, next) => {
 };
 
 //login controller
-const login = async (req, res) => {
+const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
@@ -124,7 +125,7 @@ const logout = (req, res) => {
 };
 
 //get user Profile controller
-const getProfile = async (req, res) => {
+const getProfile = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const user = await User.findById(userId);
@@ -139,4 +140,121 @@ const getProfile = async (req, res) => {
   }
 };
 
-export { register, login, logout, getProfile };
+//forgot password
+const forgotPassword = async (req, res, next) => {
+  const { email } = req.body;
+  //check if email is entered
+  if (!email) {
+    return next(new AppError("Email is required", 400));
+  }
+
+  //check if user with email exists or not
+  const user = await User.findOne({ email });
+  if (!user) {
+    return next(new AppError("Email is not registered", 400));
+  }
+
+  const resetToken = await user.generatePasswordResetToken();
+  console.log(resetToken);
+  await user.save();
+
+  const resetPasswordURL = `${process.env.FRONTEND_URL}/resetPassword/${resetToken}`;
+  console.log(resetPasswordURL);
+  const subject = "Reset Password for LMS";
+  const message = `You can reset your password by clicking  <a href=${resetPasswordURL} target="_blank"> Reset Password</a>`;
+
+  try {
+    await sendEmail(email, subject, message);
+
+    res.status(200).json({
+      success: true,
+      message: `Reset Password token has been sent to ${email} successfully`,
+    });
+  } catch (error) {
+    //if any error occurs and fail to get the mail then
+    // we will set it undefined so that user can ask for forgot password email from frontend again
+    user.forgotPasswordExpiry = undefined;
+    user.forgotPasswordToken = undefined;
+
+    await user.save();
+    return next(new AppError(error.message, 500));
+  }
+};
+
+//reset password
+const resetPassword = async (req, res, next) => {
+  const { resetToken } = req.params;
+
+  const { password } = req.body;
+
+  const forgotPasswordToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+
+  console.log("forgotPToken", forgotPasswordToken);
+  const user = await User.findOne({
+    forgotPasswordToken,
+    forgotPasswordExpiry: { $gt: Date.now() },
+  });
+  console.log("USerPToken", user.forgotPasswordToken);
+
+  if (!user) {
+    return next(
+      new AppError("Token is invalid or expired, Please try again", 400)
+    );
+  }
+
+  user.password = password;
+  user.forgotPasswordToken = undefined;
+  user.forgotPasswordExpiry = undefined;
+
+  user.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Password changed successfully",
+  });
+};
+
+//change user password
+const changePassword = async (req, res, next) => {
+  const { oldPassword, newPassword } = req.body;
+  const { id } = req.user;
+
+  if (!oldPassword || !newPassword) {
+    return next(
+      new AppError("Old password and new password are required ", 400)
+    );
+  }
+
+  const user = await User.findById(id).select("+password");
+
+  if (!user) {
+    return next(new AppError("Invalid user id or user does not exists", 400));
+  }
+
+  // Check if the old password is correct
+  const isPasswordValid = await user.comparePassword(oldPassword);
+
+  // If the old password is not valid then throw an error message
+  if (!isPasswordValid) {
+    return next(new AppError("Invalid old password", 400));
+  }
+
+  // Setting the new password
+  user.password = newPassword;
+
+  // Save the data in DB
+  await user.save();
+
+  // Setting the password undefined so that it won't get sent in the response
+  user.password = undefined;
+
+  res.status(200).json({
+    success: true,
+    message: "Password changed successfully",
+  });
+};
+
+export { register, login, logout, getProfile, forgotPassword, resetPassword };
