@@ -257,4 +257,61 @@ const changePassword = async (req, res, next) => {
   });
 };
 
-export { register, login, logout, getProfile, forgotPassword, resetPassword };
+const updateProfile = async (req, res, next) => {
+  const { username } = req.body;
+  const id = req.user.id;
+
+  const user = await User.findById(id);
+
+  if (!user) {
+    return next(new AppError("User does not exists", 400));
+  }
+
+  //update username
+  if (username) {
+    user.username = username;
+  }
+
+  //destroy old img and update new image
+  if (req.file) {
+    await cloudinary.v2.uploader.destroy(user.avatar.public_id);
+    try {
+      const result = await cloudinary.v2.uploader.upload(req.file.path, {
+        folder: "lms",
+        width: 250,
+        height: 250,
+        gravity: "faces",
+        crop: "fill",
+      });
+
+      if (result) {
+        user.avatar.public_id = result.public_id;
+        user.avatar.secure_url = result.secure_url;
+
+        //remove file from server
+        fs.rm(`uploads/${req.file.filename}`);
+      }
+    } catch (error) {
+      return next(
+        new AppError(error || "File not uploaded, please try again ", 500)
+      );
+    }
+  }
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Profile updated successfully!",
+  });
+};
+
+export {
+  register,
+  login,
+  logout,
+  getProfile,
+  forgotPassword,
+  resetPassword,
+  updateProfile,
+  changePassword,
+};
