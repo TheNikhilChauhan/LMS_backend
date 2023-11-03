@@ -1,4 +1,4 @@
-import { razorpay } from "../index.js";
+import { pay } from "../index.js";
 import User from "../models/user.model.js";
 import AppError from "../utils/error.utils.js";
 
@@ -18,10 +18,10 @@ export const buySubscription = async (req, res, next) => {
   }
 
   // Creating a subscription using razorpay that we imported from the server
-  const subscription = await razorpay.subscriptions.create({
-    plan_id: process.env.RAZORPAY_PLAN_ID,
+  const subscription = await pay.subscriptions.create({
+    plan_id: process.env.PLAN_ID,
     customer_notify: 1, // 1 means razorpay will handle notifying the customer, 0 means we will not notify the customer
-    total_count: 12, // 12 means it will charge every month for a 1-year sub.
+    total_count: 6, // 6 means it will charge bi-monthly basis for a 1-year sub.
   });
 
   user.subscription.id = subscription.id;
@@ -39,15 +39,14 @@ export const buySubscription = async (req, res, next) => {
 export const getRazorpayApiKey = async (req, res, next) => {
   res.status(200).json({
     success: true,
-    message: "Razorpay API Key",
-    key: process.env.RAZORPAY_KEY_ID,
+    message: "Payment API Key",
+    key: process.env.KEY_ID,
   });
 };
 
 export const verifySubscription = async (req, res, next) => {
   const { id } = req.user;
-  const { razorpay_payment_id, razorpay_subscription_id, razorpay_signature } =
-    req.body;
+  const { payment_id, subscription_id, signature } = req.body;
 
   const user = await User.findById(id);
 
@@ -58,20 +57,20 @@ export const verifySubscription = async (req, res, next) => {
   // razorpay_payment_id is from the frontend and there should be a '|' character between this and subscriptionId
   // At the end convert it to Hex value
   const generateSignature = crypto
-    .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-    .update(`${razorpay_payment_id} | ${subscriptionId}`)
+    .createHmac("sha256", process.env.KEY_SECRET)
+    .update(`${payment_id} | ${subscriptionId}`)
     .digest("hex");
 
   // Check if generated signature and signature received from the frontend is the same or not
-  if (generateSignature !== razorpay_signature) {
+  if (generateSignature !== signature) {
     return next(new AppError("Payment not verified, please try again.", 400));
   }
 
   // If they match create payment and store it in the DB
   await Payment.create({
-    razorpay_payment_id,
-    razorpay_subscription_id,
-    razorpay_signature,
+    payment_id,
+    subscription_id,
+    signature,
   });
 
   user.subscription.status = "active";
@@ -100,7 +99,7 @@ export const cancelSubscription = async (req, res, next) => {
 
   // Creating a subscription using razorpay that we imported from the server
   try {
-    const subscription = await razorpay.subscriptions.cancel(
+    const subscription = await pay.subscriptions.cancel(
       subscriptionId // subscription id
     );
 
@@ -116,7 +115,7 @@ export const cancelSubscription = async (req, res, next) => {
 
   // Finding the payment using the subscription ID
   const payment = await Payment.findOne({
-    razorpay_subscription_id: subscriptionId,
+    subscription_id: subscriptionId,
   });
 
   // Getting the time from the date of successful payment (in milliseconds)
@@ -136,4 +135,74 @@ export const cancelSubscription = async (req, res, next) => {
   }
 };
 
-export const allPayments = async (req, res, next) => {};
+export const allPayments = async (req, res, next) => {
+  const { count, skip } = req.query;
+
+  // Find all subscriptions from razorpay
+  const allPayments = await pay.subscriptions.all({
+    count: count ? count : 10, // If count is sent then use that else default to 10
+    skip: skip ? skip : 0, // // If skip is sent then use that else default to 0
+  });
+
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+
+  const finalMonths = {
+    January: 0,
+    February: 0,
+    March: 0,
+    April: 0,
+    May: 0,
+    June: 0,
+    July: 0,
+    August: 0,
+    September: 0,
+    October: 0,
+    November: 0,
+    December: 0,
+  };
+
+  //`monthlyWisePayments` contains the names of the months corresponding to each payment.
+  const monthlyWisePayments = allPayments.items.map((payment) => {
+    const monthsInNumbers = new Date(payment.start_at * 1000);
+
+    return monthNames[monthsInNumbers.getMonth()];
+  });
+
+  monthlyWisePayments.map((month) => {
+    Object.keys(finalMonths).forEach((objMonth) => {
+      if (month === objMonth) {
+        finalMonths[month] += 1;
+      }
+    });
+  });
+
+  const monthlySalesRecord = [];
+
+  Object.keys(finalMonths).forEach((monthName) => {
+    monthlySalesRecord.push(finalMonths[monthName]);
+  });
+
+  //Object.keys(finalMonths) converts it into array
+  //the count for each month is appended to the monthlySalesRecord array in the same order as the months, resulting in an array of sales or payment counts.
+
+  res.status(200).json({
+    success: true,
+    message: "All Payments",
+    allPayments,
+    finalMonths,
+    monthlySalesRecord,
+  });
+};

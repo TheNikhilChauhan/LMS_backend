@@ -1,5 +1,9 @@
 import { Router } from "express";
-import { authorizedRole, isLoggedIn } from "../middlewares/auth.middleware.js";
+import {
+  authorizeSubscribers,
+  authorizedRole,
+  isLoggedIn,
+} from "../middlewares/auth.middleware.js";
 import {
   allPayments,
   buySubscription,
@@ -11,7 +15,7 @@ import {
 const router = Router();
 
 router.post("/subscribe", isLoggedIn, buySubscription);
-router.post("verify", isLoggedIn, verifySubscription);
+router.post("/verify", isLoggedIn, verifySubscription);
 router.post(
   "/unsubscribe",
   isLoggedIn,
