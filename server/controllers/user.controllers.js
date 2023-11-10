@@ -14,10 +14,10 @@ const cookieOptions = {
 
 // register controller
 const register = async (req, res, next) => {
-  const { username, email, password } = req.body;
+  const { fullname, email, password } = req.body;
 
   //if any field is empty
-  if (!username || !email || !password) {
+  if (!fullname || !email || !password) {
     return next(new AppError("All fileds are required", 400));
   }
 
@@ -28,7 +28,7 @@ const register = async (req, res, next) => {
   }
 
   const user = await User.create({
-    username,
+    fullname,
     email,
     password,
     avatar: {
@@ -258,7 +258,7 @@ const changePassword = async (req, res, next) => {
 };
 
 const updateProfile = async (req, res, next) => {
-  const { username } = req.body;
+  const { fullname } = req.body;
   const id = req.user.id;
 
   const user = await User.findById(id);
@@ -267,9 +267,9 @@ const updateProfile = async (req, res, next) => {
     return next(new AppError("User does not exists", 400));
   }
 
-  //update username
-  if (username) {
-    user.username = username;
+  //update fullname
+  if (fullname) {
+    user.fullname = fullname;
   }
 
   //destroy old img and update new image

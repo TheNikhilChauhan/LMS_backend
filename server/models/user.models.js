@@ -7,7 +7,7 @@ dotenv.config();
 
 const userSchema = new Schema(
   {
-    username: {
+    fullname: {
       type: String,
       required: [true, "Name is required"],
       minLength: [5, "Name must be greater than 5 characters"],

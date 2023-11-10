@@ -7,6 +7,7 @@ import userRoutes from "./routes/user.routes.js";
 import courseRoutes from "./routes/course.routes.js";
 import paymentRoutes from "./routes/course.routes.js";
 import errorMiddleware from "./middlewares/error.middleware.js";
+import miscRoutes from "./routes/miscellaneous.routes.js";
 
 const app = express();
 dbConnect();
@@ -26,9 +27,7 @@ app.use(morgan("dev"));
 app.use("/api/v1/user", userRoutes);
 app.use("/api/v1/course", courseRoutes);
 app.use("/api/v1/payment", paymentRoutes);
-app.use("/ping", function (req, res) {
-  res.send("pong");
-});
+app.use("/api/v1", miscRoutes);
 
 app.all("*", (req, res) => {
   res.status(404).send("OOPS! 404 Page Not Found");
