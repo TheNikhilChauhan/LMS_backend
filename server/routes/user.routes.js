@@ -21,6 +21,11 @@ router.get("/getProfile", isLoggedIn, getProfile);
 router.post("/resetPassword", forgotPassword);
 router.post("/resetPassword/:resetToken", resetPassword);
 router.post("/changePassword", isLoggedIn, changePassword);
-router.post("/update", isLoggedIn, uploadImg.single("avatar"), updateProfile);
+router.put(
+  "/update/:id",
+  isLoggedIn,
+  uploadImg.single("avatar"),
+  updateProfile
+);
 
 export default router;
