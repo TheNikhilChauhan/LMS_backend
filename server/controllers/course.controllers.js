@@ -96,6 +96,14 @@ const updateCourse = async (req, res, next) => {
 
 const getLecturesByCourseId = async (req, res, next) => {
   try {
+    const { id } = req.params;
+
+    const course = await Course.findById(id);
+
+    if (!course) {
+      return next(new AppError("Invalid course id or course not found.", 404));
+    }
+
     res.status(200).json({
       success: true,
       message: "Course lectures fetched successfully",

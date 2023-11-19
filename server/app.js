@@ -5,7 +5,7 @@ import morgan from "morgan";
 import dbConnect from "./config/dbConfig.js";
 import userRoutes from "./routes/user.routes.js";
 import courseRoutes from "./routes/course.routes.js";
-import paymentRoutes from "./routes/course.routes.js";
+import paymentRoutes from "./routes/payment.routes.js";
 import errorMiddleware from "./middlewares/error.middleware.js";
 import miscRoutes from "./routes/miscellaneous.routes.js";
 
