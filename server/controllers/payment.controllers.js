@@ -74,9 +74,6 @@ export const verifySubscription = asyncHandler(async (req, res, next) => {
     .update(`${razorpay_payment_id}|${subscriptionId}`)
     .digest("hex");
 
-  console.log("Gen Sign: ", generateSignature);
-  console.log("Razorpay Sign: ", razorpay_signature);
-
   // Check if generated signature and signature received from the frontend is the same or not
   if (generateSignature !== razorpay_signature) {
     return next(new AppError("Payment not verified, please try again.", 400));
@@ -119,8 +116,10 @@ export const cancelSubscription = async (req, res, next) => {
       subscriptionId // subscription id
     );
 
+    console.log(subscription.status);
     // Adding the subscription status to the user account
     user.subscription.status = subscription.status;
+    console.log(user.subscription.status);
 
     // Saving the user object
     await user.save();
@@ -159,7 +158,7 @@ export const cancelSubscription = async (req, res, next) => {
   user.subscription.status = undefined; // Change the subscription Status in user DB
 
   await user.save();
-  await payment.remove();
+  await payment.depopulate();
 
   // Send the response
   res.status(200).json({
