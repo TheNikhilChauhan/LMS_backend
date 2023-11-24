@@ -1,5 +1,6 @@
 import AppError from "../utils/error.utils.js";
 import sendEmail from "../utils/sendEmail.js";
+import User from "../models/user.models.js";
 
 export const contactUs = async (req, res, next) => {
   const { name, email, message } = req.body;
